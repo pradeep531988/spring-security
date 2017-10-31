@@ -1,0 +1,7 @@
+
+spring-security-with-in-memory-db/.project
+spring-security-with-in-memory-db/.classpath
+spring-security-with-in-memory-db/.settings/org.eclipse.jdt.core.prefs
+*.prefs
+spring-security-with-in-memory-db/.settings/org.eclipse.wst.common.project.facet.core.xml
+spring-security-with-in-memory-db/.settings/org.eclipse.wst.common.component
