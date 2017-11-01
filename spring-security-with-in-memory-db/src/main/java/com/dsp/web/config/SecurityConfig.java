@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
-import org.springframework.security.authentication.RememberMeAuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -37,27 +36,24 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Autowired
     private Environment env;
-    
+
     @Autowired
     @Qualifier("userDetailsService")
     private UserDetailsService userDetailsService;
-
-    @Autowired
-    private PersistentTokenRepository tokenRepository;
 
     @Autowired
     public void configAuthentication(AuthenticationManagerBuilder auth) throws Exception {
         auth.jdbcAuthentication().dataSource(dataSource)
         .usersByUsernameQuery("select username,password, enabled from users where username=?")
         .authoritiesByUsernameQuery("select username, role from user_roles where username=?");
-    }	
+    }   
 
     @Autowired
     public void configureGlobalSecurity(AuthenticationManagerBuilder auth) throws Exception {
         auth.userDetailsService(userDetailsService);
         auth.authenticationProvider(authenticationProvider());
     }
-    
+
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
@@ -77,15 +73,24 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         .loginPage("/login")
         .usernameParameter("username").passwordParameter("password")
         .loginProcessingUrl("/j_spring_security_check")
-        .and().rememberMe().rememberMeServices(rememberMeServices()).tokenRepository(persistentTokenRepository()).tokenValiditySeconds(86400)        
-        .and()          
-        .authorizeRequests().antMatchers("/console/**").permitAll()
-        .and()
-        .logout().logoutSuccessUrl("/login?logout").invalidateHttpSession(true).deleteCookies("JSESSIONID")
-        .and()
+        .and().authorizeRequests().antMatchers("/console/**").permitAll(); // THis one is for H2 logging
+
+        //LOGOUT
+        http.logout()
+        .logoutUrl("/logout")
+        .logoutSuccessUrl("/login?logout")
+        .invalidateHttpSession(true).deleteCookies("JSESSIONID");
+
+        //Exception handeling and CSRF enabling
+        http
         .exceptionHandling().accessDeniedPage("/403")
-        .and()
-        .csrf();
+        .and().csrf();
+
+        // Remember Me configuraiton
+        http.rememberMe()
+        .rememberMeServices(rememberMeServices())
+        .key(env.getProperty("application.key"));
+
     }
 
 
@@ -96,28 +101,24 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    public PersistentTokenBasedRememberMeServices getPersistentTokenBasedRememberMeServices() {
-        PersistentTokenBasedRememberMeServices tokenBasedservice = new PersistentTokenBasedRememberMeServices(
-                "remember-me", userDetailsService, tokenRepository);
-        return tokenBasedservice;
-    }
-
-    @Bean
     public RememberMeServices rememberMeServices(){
         PersistentTokenBasedRememberMeServices rememberMeServices = new PersistentTokenBasedRememberMeServices(
-                        env.getProperty("application.key"), userDetailsService, persistentTokenRepository());
+                env.getProperty("application.key"), userDetailsService, persistentTokenRepository());
         rememberMeServices.setAlwaysRemember(true);
+        rememberMeServices.setTokenValiditySeconds(200000);
         return rememberMeServices;
     }
 
-    @Bean 
+
+    /*
+    @Bean
     public RememberMeAuthenticationProvider rememberMeAuthenticationProvider(){
         RememberMeAuthenticationProvider rememberMeAuthenticationProvider = 
                         new RememberMeAuthenticationProvider(env.getProperty("application.key"));
         return rememberMeAuthenticationProvider; 
-    }
+    }*/
 
-    @Bean 
+    @Bean
     public PersistentTokenRepository persistentTokenRepository() {
         return new PersistentTokenRepositoryImpl();
     }
